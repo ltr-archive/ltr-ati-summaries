@@ -1,0 +1,31 @@
+name: Sync Data
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "45 11 1 * *" # First day of every month https://serverfault.com/a/87477
+
+jobs:
+  update_data:
+    runs-on: ubuntu-latest
+    steps:
+
+    - name: Configure AWS credentials
+      id: aw
+      uses: aws-actions/configure-aws-credentials@v1
+      with:
+        aws-access-key-id: ${{ secrets.PRODUCTION_AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.PRODUCTION_AWS_SECRET_ACCESS_KEY }}
+        aws-region: us-east-2
+
+    - uses: actions/checkout@v2
+
+    - name: Sync S3 folder
+      run : aws s3 sync s3://ltr-archive-ati-summaries/ . --region=us-east-2
+
+    - name: Commit data
+      run: |
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Actions"
+        git add -A
+        git commit -m "Updating data on `date '+%Y-%m-%d'`" -a
+        git push https://${GITHUB_ACTOR}:${{ secrets.GITHUB_TOKEN }}@github.com/${GITHUB_REPOSITORY}.git HEAD:main
